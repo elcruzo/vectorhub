@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+package vectorhub.api.v1;
+
+option go_package = "github.com/elcruzo/vectorhub/api/proto";
+
+service VectorService {
+  rpc Insert(InsertRequest) returns (InsertResponse) {}
+  rpc BatchInsert(BatchInsertRequest) returns (BatchInsertResponse) {}
+  rpc Search(SearchRequest) returns (SearchResponse) {}
+  rpc Get(GetRequest) returns (GetResponse) {}
+  rpc Update(UpdateRequest) returns (UpdateResponse) {}
+  rpc Delete(DeleteRequest) returns (DeleteResponse) {}
+  rpc BatchDelete(BatchDeleteRequest) returns (BatchDeleteResponse) {}
+  rpc CreateIndex(CreateIndexRequest) returns (CreateIndexResponse) {}
+  rpc DropIndex(DropIndexRequest) returns (DropIndexResponse) {}
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {}
+}
+
+message Vector {
+  string id = 1;
+  repeated float values = 2;
+  map<string, string> metadata = 3;
+  int64 timestamp = 4;
+}
+
+message InsertRequest {
+  string index_name = 1;
+  Vector vector = 2;
+}
+
+message InsertResponse {
+  bool success = 1;
+  string message = 2;
+  string vector_id = 3;
+}
+
+message BatchInsertRequest {
+  string index_name = 1;
+  repeated Vector vectors = 2;
+  bool parallel = 3;
+}
+
+message BatchInsertResponse {
+  bool success = 1;
+  string message = 2;
+  int32 inserted_count = 3;
+  repeated string failed_ids = 4;
+}
+
+message SearchRequest {
+  string index_name = 1;
+  repeated float query_vector = 2;
+  int32 top_k = 3;
+  map<string, string> filter = 4;
+  float min_score = 5;
+  bool include_metadata = 6;
+}
+
+message SearchResult {
+  string id = 1;
+  float score = 2;
+  Vector vector = 3;
+  float distance = 4;
+}
+
+message SearchResponse {
+  bool success = 1;
+  string message = 2;
+  repeated SearchResult results = 3;
+  int64 search_time_ms = 4;
+}
+
+message GetRequest {
+  string index_name = 1;
+  string vector_id = 2;
+}
+
+message GetResponse {
+  bool success = 1;
+  string message = 2;
+  Vector vector = 3;
+}
+
+message UpdateRequest {
+  string index_name = 1;
+  string vector_id = 2;
+  Vector vector = 3;
+}
+
+message UpdateResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DeleteRequest {
+  string index_name = 1;
+  string vector_id = 2;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message BatchDeleteRequest {
+  string index_name = 1;
+  repeated string vector_ids = 2;
+}
+
+message BatchDeleteResponse {
+  bool success = 1;
+  string message = 2;
+  int32 deleted_count = 3;
+}
+
+message CreateIndexRequest {
+  string index_name = 1;
+  int32 dimension = 2;
+  string metric = 3; // cosine, euclidean, dot_product
+  int32 shard_count = 4;
+  int32 replica_count = 5;
+  map<string, string> options = 6;
+}
+
+message CreateIndexResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DropIndexRequest {
+  string index_name = 1;
+}
+
+message DropIndexResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetStatsRequest {
+  string index_name = 1;
+}
+
+message IndexStats {
+  int64 vector_count = 1;
+  int32 dimension = 2;
+  string metric = 3;
+  int32 shard_count = 4;
+  int32 replica_count = 5;
+  int64 memory_usage_bytes = 6;
+  map<int32, ShardStats> shard_stats = 7;
+}
+
+message ShardStats {
+  int32 shard_id = 1;
+  int64 vector_count = 2;
+  string status = 3;
+  repeated string replica_nodes = 4;
+  int64 memory_usage_bytes = 5;
+}
+
+message GetStatsResponse {
+  bool success = 1;
+  string message = 2;
+  IndexStats stats = 3;
+}

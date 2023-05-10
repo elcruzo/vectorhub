@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  redis-0:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-0-data:/data
+    networks:
+      - vectorhub
+
+  redis-1:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-1-data:/data
+    networks:
+      - vectorhub
+
+  redis-2:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-2-data:/data
+    networks:
+      - vectorhub
+
+  redis-3:
+    image: redis:7-alpine
+    ports:
+      - "6382:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-3-data:/data
+    networks:
+      - vectorhub
+
+  vectorhub:
+    build: .
+    ports:
+      - "50051:50051"
+      - "9090:9090"
+    depends_on:
+      - redis-0
+      - redis-1
+      - redis-2
+      - redis-3
+    environment:
+      - VECTORHUB_REDIS__ADDRESSES=redis-0:6379,redis-1:6379,redis-2:6379,redis-3:6379
+      - VECTORHUB_REPLICATION__REPLICA_ADDRESSES=redis-1:6379,redis-2:6379
+      - VECTORHUB_LOGGING__LEVEL=info
+    volumes:
+      - ./configs:/root/configs
+    networks:
+      - vectorhub
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./deployments/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - vectorhub
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deployments/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./deployments/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - vectorhub
+
+volumes:
+  redis-0-data:
+  redis-1-data:
+  redis-2-data:
+  redis-3-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  vectorhub:
+    driver: bridge

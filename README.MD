@@ -1,4 +1,3 @@
-
 # VectorHub
 
 A high-performance distributed vector database system designed for scale. VectorHub shards Redis for speed, exposes a gRPC interface for fast insert/search operations, and replicates cleanly for high availability. Stress-tested to handle over **1 million vector writes per minute** while keeping lookups under **100ms**.
@@ -44,7 +43,7 @@ package main
 import (
     "context"
     "log"
-  
+    
     "github.com/elcruzo/vectorhub/pkg/client"
 )
 
@@ -57,9 +56,9 @@ func main() {
         log.Fatal(err)
     }
     defer client.Close()
-  
+    
     ctx := context.Background()
-  
+    
     // Create an index
     err = client.CreateIndex(ctx, client.CreateIndexOptions{
         Name:         "embeddings",
@@ -68,12 +67,12 @@ func main() {
         ShardCount:   8,
         ReplicaCount: 2,
     })
-  
+    
     // Insert a vector
     err = client.Insert(ctx, "embeddings", "doc-1", 
         []float32{0.1, 0.2, 0.3, /* ... */}, 
         map[string]string{"category": "document"})
-  
+    
     // Search for similar vectors
     results, err := client.Search(ctx, "embeddings", 
         []float32{0.1, 0.2, 0.3, /* ... */}, 
@@ -81,7 +80,7 @@ func main() {
             TopK: 10,
             IncludeMetadata: true,
         })
-  
+    
     for _, result := range results {
         log.Printf("ID: %s, Score: %f", result.ID, result.Score)
     }
