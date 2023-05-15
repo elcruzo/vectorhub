@@ -48,6 +48,9 @@ configs/production.yaml
 .env.local
 .env.production
 
+# Docker Compose override (for local development)
+docker-compose.override.yml
+
 # Docker
 .docker/
 

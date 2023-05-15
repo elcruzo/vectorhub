@@ -3,105 +3,109 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Server       ServerConfig       `mapstructure:"server"`
-	Redis        RedisConfig        `mapstructure:"redis"`
-	Sharding     ShardingConfig     `mapstructure:"sharding"`
-	Replication  ReplicationConfig  `mapstructure:"replication"`
-	Metrics      MetricsConfig      `mapstructure:"metrics"`
-	Logging      LoggingConfig      `mapstructure:"logging"`
-	Performance  PerformanceConfig  `mapstructure:"performance"`
+	Server      ServerConfig      `mapstructure:"server"`
+	Redis       RedisConfig       `mapstructure:"redis"`
+	Sharding    ShardingConfig    `mapstructure:"sharding"`
+	Replication ReplicationConfig `mapstructure:"replication"`
+	Metrics     MetricsConfig     `mapstructure:"metrics"`
+	Logging     LoggingConfig     `mapstructure:"logging"`
+	Performance PerformanceConfig `mapstructure:"performance"`
 }
 
 type ServerConfig struct {
-	GRPCPort              int    `mapstructure:"grpc_port"`
-	MetricsPort           int    `mapstructure:"metrics_port"`
-	MaxMessageSizeMB      int    `mapstructure:"max_message_size_mb"`
-	MaxConcurrentStreams  int    `mapstructure:"max_concurrent_streams"`
-	ConnectionTimeout     int    `mapstructure:"connection_timeout_seconds"`
-	KeepAliveTime         int    `mapstructure:"keepalive_time_seconds"`
-	KeepAliveTimeout      int    `mapstructure:"keepalive_timeout_seconds"`
-	TLSEnabled            bool   `mapstructure:"tls_enabled"`
-	TLSCertFile           string `mapstructure:"tls_cert_file"`
-	TLSKeyFile            string `mapstructure:"tls_key_file"`
+	GRPCPort             int    `mapstructure:"grpc_port"`
+	MetricsPort          int    `mapstructure:"metrics_port"`
+	MaxMessageSizeMB     int    `mapstructure:"max_message_size_mb"`
+	MaxConcurrentStreams int    `mapstructure:"max_concurrent_streams"`
+	ConnectionTimeout    int    `mapstructure:"connection_timeout_seconds"`
+	KeepAliveTime        int    `mapstructure:"keepalive_time_seconds"`
+	KeepAliveTimeout     int    `mapstructure:"keepalive_timeout_seconds"`
+	TLSEnabled           bool   `mapstructure:"tls_enabled"`
+	TLSCertFile          string `mapstructure:"tls_cert_file"`
+	TLSKeyFile           string `mapstructure:"tls_key_file"`
 }
 
 type RedisConfig struct {
-	Addresses         []string `mapstructure:"addresses"`
-	Password          string   `mapstructure:"password"`
-	DB                int      `mapstructure:"db"`
-	PoolSize          int      `mapstructure:"pool_size"`
-	MinIdleConns      int      `mapstructure:"min_idle_conns"`
-	MaxRetries        int      `mapstructure:"max_retries"`
-	DialTimeout       int      `mapstructure:"dial_timeout_seconds"`
-	ReadTimeout       int      `mapstructure:"read_timeout_seconds"`
-	WriteTimeout      int      `mapstructure:"write_timeout_seconds"`
-	ClusterMode       bool     `mapstructure:"cluster_mode"`
-	SentinelMode      bool     `mapstructure:"sentinel_mode"`
-	SentinelMasterName string  `mapstructure:"sentinel_master_name"`
+	Addresses          []string `mapstructure:"addresses"`
+	Password           string   `mapstructure:"password"`
+	DB                 int      `mapstructure:"db"`
+	PoolSize           int      `mapstructure:"pool_size"`
+	MinIdleConns       int      `mapstructure:"min_idle_conns"`
+	MaxRetries         int      `mapstructure:"max_retries"`
+	DialTimeout        int      `mapstructure:"dial_timeout_seconds"`
+	ReadTimeout        int      `mapstructure:"read_timeout_seconds"`
+	WriteTimeout       int      `mapstructure:"write_timeout_seconds"`
+	ClusterMode        bool     `mapstructure:"cluster_mode"`
+	SentinelMode       bool     `mapstructure:"sentinel_mode"`
+	SentinelMasterName string   `mapstructure:"sentinel_master_name"`
 }
 
 type ShardingConfig struct {
-	ShardCount                 int `mapstructure:"shard_count"`
-	ReplicaCount               int `mapstructure:"replica_count"`
-	VirtualNodes               int `mapstructure:"virtual_nodes"`
-	HealthCheckIntervalSeconds int `mapstructure:"health_check_interval_seconds"`
+	ShardCount                 int  `mapstructure:"shard_count"`
+	ReplicaCount               int  `mapstructure:"replica_count"`
+	VirtualNodes               int  `mapstructure:"virtual_nodes"`
+	HealthCheckIntervalSeconds int  `mapstructure:"health_check_interval_seconds"`
 	RebalanceEnabled           bool `mapstructure:"rebalance_enabled"`
-	RebalanceIntervalMinutes   int `mapstructure:"rebalance_interval_minutes"`
+	RebalanceIntervalMinutes   int  `mapstructure:"rebalance_interval_minutes"`
 }
 
 type ReplicationConfig struct {
-	Factor                  int      `mapstructure:"factor"`
-	SyncIntervalSeconds     int      `mapstructure:"sync_interval_seconds"`
-	MaxLagSeconds           int      `mapstructure:"max_lag_seconds"`
-	FailoverTimeoutSeconds  int      `mapstructure:"failover_timeout_seconds"`
-	ReplicaAddresses        []string `mapstructure:"replica_addresses"`
-	AsyncReplication        bool     `mapstructure:"async_replication"`
-	CompressionEnabled      bool     `mapstructure:"compression_enabled"`
+	Factor                 int      `mapstructure:"factor"`
+	SyncIntervalSeconds    int      `mapstructure:"sync_interval_seconds"`
+	MaxLagSeconds          int      `mapstructure:"max_lag_seconds"`
+	FailoverTimeoutSeconds int      `mapstructure:"failover_timeout_seconds"`
+	ReplicaAddresses       []string `mapstructure:"replica_addresses"`
+	AsyncReplication       bool     `mapstructure:"async_replication"`
+	CompressionEnabled     bool     `mapstructure:"compression_enabled"`
 }
 
 type MetricsConfig struct {
-	Enabled              bool     `mapstructure:"enabled"`
-	Namespace            string   `mapstructure:"namespace"`
-	Subsystem            string   `mapstructure:"subsystem"`
-	HistogramBuckets     []float64 `mapstructure:"histogram_buckets"`
-	CollectionInterval   int      `mapstructure:"collection_interval_seconds"`
-	EnableDetailedMetrics bool     `mapstructure:"enable_detailed_metrics"`
+	Enabled               bool      `mapstructure:"enabled"`
+	Namespace             string    `mapstructure:"namespace"`
+	Subsystem             string    `mapstructure:"subsystem"`
+	HistogramBuckets      []float64 `mapstructure:"histogram_buckets"`
+	CollectionInterval    int       `mapstructure:"collection_interval_seconds"`
+	EnableDetailedMetrics bool      `mapstructure:"enable_detailed_metrics"`
 }
 
 type LoggingConfig struct {
-	Level             string `mapstructure:"level"`
-	Format            string `mapstructure:"format"`
-	OutputPath        string `mapstructure:"output_path"`
-	ErrorOutputPath   string `mapstructure:"error_output_path"`
-	EnableStacktrace  bool   `mapstructure:"enable_stacktrace"`
-	EnableCaller      bool   `mapstructure:"enable_caller"`
-	EnableSampling    bool   `mapstructure:"enable_sampling"`
-	SamplingInitial   int    `mapstructure:"sampling_initial"`
-	SamplingThereafter int   `mapstructure:"sampling_thereafter"`
+	Level              string `mapstructure:"level"`
+	Format             string `mapstructure:"format"`
+	OutputPath         string `mapstructure:"output_path"`
+	ErrorOutputPath    string `mapstructure:"error_output_path"`
+	EnableStacktrace   bool   `mapstructure:"enable_stacktrace"`
+	EnableCaller       bool   `mapstructure:"enable_caller"`
+	EnableSampling     bool   `mapstructure:"enable_sampling"`
+	SamplingInitial    int    `mapstructure:"sampling_initial"`
+	SamplingThereafter int    `mapstructure:"sampling_thereafter"`
 }
 
 type PerformanceConfig struct {
-	MaxCPU              int  `mapstructure:"max_cpu"`
-	MaxMemoryGB         int  `mapstructure:"max_memory_gb"`
-	EnableProfiling     bool `mapstructure:"enable_profiling"`
-	ProfilingPort       int  `mapstructure:"profiling_port"`
-	GCPercent           int  `mapstructure:"gc_percent"`
-	EnableMemoryLimit   bool `mapstructure:"enable_memory_limit"`
-	VectorCacheSize     int  `mapstructure:"vector_cache_size_mb"`
-	IndexCacheSize      int  `mapstructure:"index_cache_size_mb"`
-	QueryCacheEnabled   bool `mapstructure:"query_cache_enabled"`
-	QueryCacheTTL       int  `mapstructure:"query_cache_ttl_seconds"`
+	MaxCPU            int  `mapstructure:"max_cpu"`
+	MaxMemoryGB       int  `mapstructure:"max_memory_gb"`
+	EnableProfiling   bool `mapstructure:"enable_profiling"`
+	ProfilingPort     int  `mapstructure:"profiling_port"`
+	GCPercent         int  `mapstructure:"gc_percent"`
+	EnableMemoryLimit bool `mapstructure:"enable_memory_limit"`
+	VectorCacheSize   int  `mapstructure:"vector_cache_size_mb"`
+	IndexCacheSize    int  `mapstructure:"index_cache_size_mb"`
+	QueryCacheEnabled bool `mapstructure:"query_cache_enabled"`
+	QueryCacheTTL     int  `mapstructure:"query_cache_ttl_seconds"`
 }
 
 func Load(configPath string) (*Config, error) {
 	if configPath == "" {
 		configPath = "configs/config.yaml"
 	}
+
+	// Load .env file if it exists (for local development)
+	loadEnvFile()
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return defaultConfig(), nil
@@ -110,8 +114,12 @@ func Load(configPath string) (*Config, error) {
 	viper.SetConfigFile(configPath)
 	viper.SetConfigType("yaml")
 
+	// Enable environment variable overrides
 	viper.SetEnvPrefix("VECTORHUB")
 	viper.AutomaticEnv()
+
+	// Support nested keys via double underscore (e.g., VECTORHUB_REDIS__ADDRESSES)
+	viper.SetEnvKeyReplacer(nil)
 
 	viper.SetDefault("server.grpc_port", 50051)
 	viper.SetDefault("server.metrics_port", 9090)
@@ -202,20 +210,20 @@ func defaultConfig() *Config {
 			ReplicaAddresses:       []string{"localhost:6380", "localhost:6381"},
 		},
 		Metrics: MetricsConfig{
-			Enabled:                 true,
-			Namespace:               "vectorhub",
-			Subsystem:               "server",
-			CollectionInterval:      10,
+			Enabled:            true,
+			Namespace:          "vectorhub",
+			Subsystem:          "server",
+			CollectionInterval: 10,
 		},
 		Logging: LoggingConfig{
 			Level:  "info",
 			Format: "json",
 		},
 		Performance: PerformanceConfig{
-			GCPercent:           100,
-			VectorCacheSize:     1024,
-			IndexCacheSize:      512,
-			QueryCacheTTL:       60,
+			GCPercent:       100,
+			VectorCacheSize: 1024,
+			IndexCacheSize:  512,
+			QueryCacheTTL:   60,
 		},
 	}
 }
@@ -242,4 +250,25 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// loadEnvFile loads environment variables from .env file if it exists
+func loadEnvFile() {
+	envPaths := []string{
+		".env",
+		".env.local",
+		filepath.Join(".", ".env"),
+	}
+
+	for _, envPath := range envPaths {
+		if _, err := os.Stat(envPath); err == nil {
+			// File exists, load it
+			viper.SetConfigFile(envPath)
+			viper.SetConfigType("env")
+			if err := viper.MergeInConfig(); err == nil {
+				fmt.Printf("Loaded environment from: %s\n", envPath)
+				break
+			}
+		}
+	}
 }
