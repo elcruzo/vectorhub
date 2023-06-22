@@ -4,7 +4,7 @@ func QuickSelectResults(results []*SearchResult, k int) {
 	if len(results) <= k {
 		return
 	}
-	
+
 	left, right := 0, len(results)-1
 	for left < right {
 		pivotIdx := partitionResults(results, left, right)

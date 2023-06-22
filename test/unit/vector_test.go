@@ -158,7 +158,7 @@ func TestGetDistanceFunc(t *testing.T) {
 		t.Run(tt.metric, func(t *testing.T) {
 			distFunc := storage.GetDistanceFunc(tt.metric)
 			assert.NotNil(t, distFunc)
-			
+
 			a := []float32{1, 2, 3}
 			b := []float32{4, 5, 6}
 			result := distFunc(a, b)
@@ -169,7 +169,7 @@ func TestGetDistanceFunc(t *testing.T) {
 
 func TestVectorIndex(t *testing.T) {
 	index := storage.NewVectorIndex("test-index", 128, "cosine", 4, 2)
-	
+
 	assert.Equal(t, "test-index", index.Name)
 	assert.Equal(t, 128, index.Dimension)
 	assert.Equal(t, "cosine", index.Metric)
