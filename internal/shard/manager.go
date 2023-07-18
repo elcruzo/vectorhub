@@ -11,13 +11,13 @@ import (
 )
 
 type ShardInfo struct {
-	ID           int
-	Node         string
-	Status       string
-	VectorCount  int64
-	MemoryUsage  int64
+	ID              int
+	Node            string
+	Status          string
+	VectorCount     int64
+	MemoryUsage     int64
 	LastHealthCheck time.Time
-	Replicas     []string
+	Replicas        []string
 }
 
 type ShardManager struct {
@@ -34,18 +34,18 @@ type ShardManager struct {
 }
 
 type ShardConfig struct {
-	ShardCount      int
-	ReplicaCount    int
-	VirtualNodes    int
+	ShardCount          int
+	ReplicaCount        int
+	VirtualNodes        int
 	HealthCheckInterval time.Duration
-	RedisAddresses  []string
-	RedisPassword   string
-	RedisDB         int
+	RedisAddresses      []string
+	RedisPassword       string
+	RedisDB             int
 }
 
 func NewShardManager(config *ShardConfig, logger *zap.Logger) *ShardManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	sm := &ShardManager{
 		consistentHash: NewConsistentHash(config.VirtualNodes),
 		shards:         make(map[int]*ShardInfo),
@@ -60,29 +60,29 @@ func NewShardManager(config *ShardConfig, logger *zap.Logger) *ShardManager {
 	for i := 0; i < config.ShardCount; i++ {
 		nodeAddr := config.RedisAddresses[i%len(config.RedisAddresses)]
 		sm.consistentHash.AddNode(nodeAddr)
-		
+
 		shard := &ShardInfo{
-			ID:     i,
-			Node:   nodeAddr,
-			Status: "active",
+			ID:              i,
+			Node:            nodeAddr,
+			Status:          "active",
 			LastHealthCheck: time.Now(),
 		}
-		
+
 		sm.shards[i] = shard
-		
+
 		if _, exists := sm.nodeToShards[nodeAddr]; !exists {
 			sm.nodeToShards[nodeAddr] = make([]int, 0)
 		}
 		sm.nodeToShards[nodeAddr] = append(sm.nodeToShards[nodeAddr], i)
-		
+
 		adapter, err := storage.NewRedisAdapter(storage.RedisConfig{
 			Addr:     nodeAddr,
 			Password: config.RedisPassword,
 			DB:       config.RedisDB + i,
 		}, logger)
-		
+
 		if err != nil {
-			logger.Error("Failed to create Redis adapter for shard", 
+			logger.Error("Failed to create Redis adapter for shard",
 				zap.Int("shard", i),
 				zap.String("node", nodeAddr),
 				zap.Error(err))
@@ -93,7 +93,7 @@ func NewShardManager(config *ShardConfig, logger *zap.Logger) *ShardManager {
 	}
 
 	sm.startHealthCheck()
-	
+
 	return sm
 }
 
@@ -113,7 +113,7 @@ func (sm *ShardManager) GetShardForKey(key string) (int, error) {
 
 	hash := crc32Hash(key)
 	shardIndex := hash % uint32(len(shards))
-	
+
 	return shards[shardIndex], nil
 }
 
@@ -164,7 +164,7 @@ func (sm *ShardManager) GetHealthyShards() []*ShardInfo {
 
 func (sm *ShardManager) startHealthCheck() {
 	sm.healthTicker = time.NewTicker(sm.config.HealthCheckInterval)
-	
+
 	go func() {
 		for {
 			select {
@@ -189,7 +189,7 @@ func (sm *ShardManager) performHealthCheck() {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		
+
 		count, err := adapter.GetVectorCount(ctx, "_health_check")
 		cancel()
 
@@ -256,7 +256,7 @@ func (sm *ShardManager) UpdateShardReplicas(shardID int, replicas []string) erro
 
 func (sm *ShardManager) Close() error {
 	sm.cancel()
-	
+
 	if sm.healthTicker != nil {
 		sm.healthTicker.Stop()
 	}

@@ -8,10 +8,10 @@ import (
 )
 
 type ConsistentHash struct {
-	nodes       map[uint32]string
-	sortedKeys  []uint32
+	nodes        map[uint32]string
+	sortedKeys   []uint32
 	virtualNodes int
-	mu          sync.RWMutex
+	mu           sync.RWMutex
 }
 
 func NewConsistentHash(virtualNodes int) *ConsistentHash {
