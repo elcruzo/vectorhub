@@ -56,7 +56,7 @@ type ReplicationEntry struct {
 
 func NewManager(config *Config, logger *zap.Logger) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	m := &Manager{
 		replicas:       make(map[int][]*ReplicaNode),
 		primaryNodes:   make(map[int]string),
@@ -69,7 +69,7 @@ func NewManager(config *Config, logger *zap.Logger) *Manager {
 	}
 
 	m.startSyncMonitor()
-	
+
 	return m
 }
 
@@ -146,7 +146,7 @@ func (m *Manager) ReplicateInsert(ctx context.Context, indexName string, vector 
 				errorMu.Lock()
 				errors = append(errors, err)
 				errorMu.Unlock()
-				
+
 				m.logReplication(shardID, "insert", vector.ID, false)
 				m.markReplicaFailed(shardID, r.Address)
 			} else {
@@ -312,7 +312,7 @@ func (m *Manager) PromoteReplica(shardID int, replicaAddress string) error {
 	}
 
 	oldPrimary := m.primaryNodes[shardID]
-	
+
 	for _, r := range replicas {
 		if r.Address == oldPrimary {
 			r.Role = "secondary"
