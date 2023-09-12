@@ -15,6 +15,11 @@ service VectorService {
   rpc CreateIndex(CreateIndexRequest) returns (CreateIndexResponse) {}
   rpc DropIndex(DropIndexRequest) returns (DropIndexResponse) {}
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {}
+  
+  // Streaming operations
+  rpc StreamInsert(stream InsertRequest) returns (stream InsertResponse) {}
+  rpc StreamSearch(stream SearchRequest) returns (stream SearchResponse) {}
+  rpc StreamBatchInsert(stream BatchInsertRequest) returns (stream BatchInsertResponse) {}
 }
 
 message Vector {

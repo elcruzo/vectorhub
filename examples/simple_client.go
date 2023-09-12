@@ -22,7 +22,7 @@ func main() {
 	}
 
 	fmt.Printf("Connecting to VectorHub server at %s...\n", clientConfig.Address)
-	
+
 	vectorClient, err := client.NewClient(clientConfig)
 	if err != nil {
 		log.Printf("Failed to create client: %v", err)
@@ -40,17 +40,17 @@ func main() {
 	fmt.Println("2. Create an index with proper dimensions")
 	fmt.Println("3. Insert vectors and perform searches")
 	fmt.Println("")
-	
+
 	// Show example vector data
 	exampleVector := make([]float32, 128)
 	for i := range exampleVector {
 		exampleVector[i] = float32(i) / 128.0
 	}
-	
-	fmt.Printf("Example 128-dimensional vector: [%.3f, %.3f, ..., %.3f]\n", 
+
+	fmt.Printf("Example 128-dimensional vector: [%.3f, %.3f, ..., %.3f]\n",
 		exampleVector[0], exampleVector[1], exampleVector[127])
-	
+
 	fmt.Println("Example metadata: map[string]string{\"category\": \"example\", \"source\": \"demo\"}")
-	
+
 	_, _ = ctx, exampleVector // Avoid unused variable warnings
 }

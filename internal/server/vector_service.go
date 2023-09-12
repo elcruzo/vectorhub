@@ -16,12 +16,12 @@ import (
 
 type VectorService struct {
 	pb.UnimplementedVectorServiceServer
-	shardManager      *shard.ShardManager
+	shardManager       *shard.ShardManager
 	replicationManager *replication.Manager
-	metricsCollector  *metrics.Collector
-	logger            *zap.Logger
-	indexes           map[string]*storage.VectorIndex
-	indexMu           sync.RWMutex
+	metricsCollector   *metrics.Collector
+	logger             *zap.Logger
+	indexes            map[string]*storage.VectorIndex
+	indexMu            sync.RWMutex
 }
 
 func NewVectorService(
@@ -31,11 +31,11 @@ func NewVectorService(
 	logger *zap.Logger,
 ) *VectorService {
 	return &VectorService{
-		shardManager:      shardManager,
+		shardManager:       shardManager,
 		replicationManager: replicationManager,
-		metricsCollector:  metricsCollector,
-		logger:            logger,
-		indexes:           make(map[string]*storage.VectorIndex),
+		metricsCollector:   metricsCollector,
+		logger:             logger,
+		indexes:            make(map[string]*storage.VectorIndex),
 	}
 }
 
@@ -137,7 +137,7 @@ func (s *VectorService) BatchInsert(ctx context.Context, req *pb.BatchInsertRequ
 
 	shardGroups := make(map[int][]*storage.StoredVector)
 	failedIDs := make([]string, 0)
-	
+
 	for _, vector := range req.Vectors {
 		if len(vector.Values) != index.Dimension {
 			failedIDs = append(failedIDs, vector.Id)
@@ -166,16 +166,16 @@ func (s *VectorService) BatchInsert(ctx context.Context, req *pb.BatchInsertRequ
 	}
 
 	inserted := 0
-	
+
 	if req.Parallel {
 		var wg sync.WaitGroup
 		var mu sync.Mutex
-		
+
 		for shardID, vectors := range shardGroups {
 			wg.Add(1)
 			go func(sID int, vecs []*storage.StoredVector) {
 				defer wg.Done()
-				
+
 				adapter, err := s.shardManager.GetShardAdapter(sID)
 				if err != nil {
 					mu.Lock()
@@ -196,12 +196,12 @@ func (s *VectorService) BatchInsert(ctx context.Context, req *pb.BatchInsertRequ
 					mu.Lock()
 					inserted += len(vecs)
 					mu.Unlock()
-					
+
 					s.replicationManager.ReplicateBatch(ctx, req.IndexName, vecs, sID)
 				}
 			}(shardID, vectors)
 		}
-		
+
 		wg.Wait()
 	} else {
 		for shardID, vectors := range shardGroups {
@@ -274,13 +274,13 @@ func (s *VectorService) Search(ctx context.Context, req *pb.SearchRequest) (*pb.
 	allResults := make([]*storage.SearchResult, 0)
 	resultsChan := make(chan []*storage.SearchResult, len(shards))
 	errorsChan := make(chan error, len(shards))
-	
+
 	var wg sync.WaitGroup
 	for _, shardInfo := range shards {
 		wg.Add(1)
 		go func(sID int) {
 			defer wg.Done()
-			
+
 			adapter, err := s.shardManager.GetShardAdapter(sID)
 			if err != nil {
 				errorsChan <- err
@@ -292,7 +292,7 @@ func (s *VectorService) Search(ctx context.Context, req *pb.SearchRequest) (*pb.
 				errorsChan <- err
 				return
 			}
-			
+
 			resultsChan <- results
 		}(shardInfo.ID)
 	}
@@ -321,7 +321,7 @@ func (s *VectorService) Search(ctx context.Context, req *pb.SearchRequest) (*pb.
 			Score:    r.Score,
 			Distance: r.Distance,
 		}
-		
+
 		if req.IncludeMetadata && r.Vector != nil {
 			result.Vector = &pb.Vector{
 				Id:        r.Vector.ID,
@@ -330,11 +330,11 @@ func (s *VectorService) Search(ctx context.Context, req *pb.SearchRequest) (*pb.
 				Timestamp: r.Vector.Timestamp,
 			}
 		}
-		
+
 		if req.MinScore > 0 && r.Score < req.MinScore {
 			continue
 		}
-		
+
 		pbResults = append(pbResults, result)
 	}
 
@@ -483,13 +483,13 @@ func (s *VectorService) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.
 
 func (s *VectorService) BatchDelete(ctx context.Context, req *pb.BatchDeleteRequest) (*pb.BatchDeleteResponse, error) {
 	shardGroups := make(map[int][]string)
-	
+
 	for _, vectorID := range req.VectorIds {
 		shardID, err := s.shardManager.GetShardForKey(vectorID)
 		if err != nil {
 			continue
 		}
-		
+
 		if _, exists := shardGroups[shardID]; !exists {
 			shardGroups[shardID] = make([]string, 0)
 		}
@@ -556,9 +556,9 @@ func (s *VectorService) CreateIndex(ctx context.Context, req *pb.CreateIndexRequ
 		if err != nil {
 			continue
 		}
-		
+
 		if err := adapter.CreateIndex(ctx, index); err != nil {
-			s.logger.Error("Failed to create index on shard", 
+			s.logger.Error("Failed to create index on shard",
 				zap.Int("shard", shardInfo.ID),
 				zap.Error(err))
 		}
@@ -589,9 +589,9 @@ func (s *VectorService) DropIndex(ctx context.Context, req *pb.DropIndexRequest)
 		if err != nil {
 			continue
 		}
-		
+
 		if err := adapter.DropIndex(ctx, req.IndexName); err != nil {
-			s.logger.Warn("Failed to drop index on shard", 
+			s.logger.Warn("Failed to drop index on shard",
 				zap.Int("shard", shardInfo.ID),
 				zap.Error(err))
 		}
@@ -659,4 +659,402 @@ func (s *VectorService) GetStats(ctx context.Context, req *pb.GetStatsRequest) (
 			ShardStats:       shardStats,
 		},
 	}, nil
+}
+
+func (s *VectorService) StreamInsert(stream pb.VectorService_StreamInsertServer) error {
+	s.logger.Info("StreamInsert: Starting streaming insert session")
+
+	count := 0
+	successCount := 0
+
+	for {
+		req, err := stream.Recv()
+		if err == nil {
+			break
+		}
+		if err != nil {
+			s.logger.Error("StreamInsert: Failed to receive", zap.Error(err))
+			return err
+		}
+
+		count++
+
+		if req.Vector == nil || len(req.Vector.Values) == 0 {
+			if err := stream.Send(&pb.InsertResponse{
+				Success: false,
+				Message: "vector is required",
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		s.indexMu.RLock()
+		index, exists := s.indexes[req.IndexName]
+		s.indexMu.RUnlock()
+
+		if !exists {
+			if err := stream.Send(&pb.InsertResponse{
+				Success: false,
+				Message: fmt.Sprintf("index %s not found", req.IndexName),
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if len(req.Vector.Values) != index.Dimension {
+			if err := stream.Send(&pb.InsertResponse{
+				Success: false,
+				Message: fmt.Sprintf("vector dimension mismatch: expected %d, got %d", index.Dimension, len(req.Vector.Values)),
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		storedVector := &storage.StoredVector{
+			VectorMetadata: storage.VectorMetadata{
+				ID:        req.Vector.Id,
+				Metadata:  req.Vector.Metadata,
+				Timestamp: time.Now().UnixNano(),
+			},
+			Values: req.Vector.Values,
+		}
+
+		shardID, err := s.shardManager.GetShardForKey(req.Vector.Id)
+		if err != nil {
+			if err := stream.Send(&pb.InsertResponse{
+				Success: false,
+				Message: err.Error(),
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		adapter, err := s.shardManager.GetShardAdapter(shardID)
+		if err != nil {
+			if err := stream.Send(&pb.InsertResponse{
+				Success: false,
+				Message: err.Error(),
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		ctx := stream.Context()
+		if err := adapter.StoreVector(ctx, req.IndexName, storedVector); err != nil {
+			if err := stream.Send(&pb.InsertResponse{
+				Success: false,
+				Message: err.Error(),
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		s.replicationManager.ReplicateInsert(ctx, req.IndexName, storedVector, shardID)
+
+		successCount++
+		if err := stream.Send(&pb.InsertResponse{
+			Success:  true,
+			Message:  "vector inserted successfully",
+			VectorId: req.Vector.Id,
+		}); err != nil {
+			return err
+		}
+	}
+
+	s.metricsCollector.IncrementCounter("vectors_inserted", float64(successCount))
+	s.logger.Info("StreamInsert: Completed",
+		zap.Int("total", count),
+		zap.Int("success", successCount))
+
+	return nil
+}
+
+func (s *VectorService) StreamSearch(stream pb.VectorService_StreamSearchServer) error {
+	s.logger.Info("StreamSearch: Starting streaming search session")
+
+	count := 0
+
+	for {
+		req, err := stream.Recv()
+		if err == nil {
+			break
+		}
+		if err != nil {
+			s.logger.Error("StreamSearch: Failed to receive", zap.Error(err))
+			return err
+		}
+
+		count++
+
+		s.indexMu.RLock()
+		index, exists := s.indexes[req.IndexName]
+		s.indexMu.RUnlock()
+
+		if !exists {
+			if err := stream.Send(&pb.SearchResponse{
+				Success: false,
+				Message: fmt.Sprintf("index %s not found", req.IndexName),
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if len(req.QueryVector) != index.Dimension {
+			if err := stream.Send(&pb.SearchResponse{
+				Success: false,
+				Message: fmt.Sprintf("query vector dimension mismatch: expected %d, got %d", index.Dimension, len(req.QueryVector)),
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		shards := s.shardManager.GetHealthyShards()
+		if len(shards) == 0 {
+			if err := stream.Send(&pb.SearchResponse{
+				Success: false,
+				Message: "no healthy shards available",
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		topK := int(req.TopK)
+		if topK <= 0 {
+			topK = 10
+		}
+
+		allResults := make([]*storage.SearchResult, 0)
+		resultsChan := make(chan []*storage.SearchResult, len(shards))
+		errorsChan := make(chan error, len(shards))
+
+		var wg sync.WaitGroup
+		ctx := stream.Context()
+
+		for _, shardInfo := range shards {
+			wg.Add(1)
+			go func(sID int) {
+				defer wg.Done()
+
+				adapter, err := s.shardManager.GetShardAdapter(sID)
+				if err != nil {
+					errorsChan <- err
+					return
+				}
+
+				results, err := adapter.SearchVectors(ctx, req.IndexName, req.QueryVector, topK, req.Filter)
+				if err != nil {
+					errorsChan <- err
+					return
+				}
+
+				resultsChan <- results
+			}(shardInfo.ID)
+		}
+
+		go func() {
+			wg.Wait()
+			close(resultsChan)
+			close(errorsChan)
+		}()
+
+		for results := range resultsChan {
+			allResults = append(allResults, results...)
+		}
+
+		if len(allResults) > topK {
+			storage.QuickSelectResults(allResults, topK)
+			allResults = allResults[:topK]
+		}
+
+		storage.SortResultsByScore(allResults)
+
+		pbResults := make([]*pb.SearchResult, 0, len(allResults))
+		for _, r := range allResults {
+			if req.MinScore > 0 && r.Score < req.MinScore {
+				continue
+			}
+
+			result := &pb.SearchResult{
+				Id:       r.ID,
+				Score:    r.Score,
+				Distance: r.Distance,
+			}
+
+			if req.IncludeMetadata && r.Vector != nil {
+				result.Vector = &pb.Vector{
+					Id:        r.Vector.ID,
+					Values:    r.Vector.Values,
+					Metadata:  r.Vector.Metadata,
+					Timestamp: r.Vector.Timestamp,
+				}
+			}
+
+			pbResults = append(pbResults, result)
+		}
+
+		if err := stream.Send(&pb.SearchResponse{
+			Success: true,
+			Message: "search completed",
+			Results: pbResults,
+		}); err != nil {
+			return err
+		}
+
+		s.metricsCollector.IncrementCounter("searches", 1)
+	}
+
+	s.logger.Info("StreamSearch: Completed", zap.Int("searches", count))
+	return nil
+}
+
+func (s *VectorService) StreamBatchInsert(stream pb.VectorService_StreamBatchInsertServer) error {
+	s.logger.Info("StreamBatchInsert: Starting streaming batch insert session")
+
+	totalCount := 0
+	totalSuccess := 0
+
+	for {
+		req, err := stream.Recv()
+		if err == nil {
+			break
+		}
+		if err != nil {
+			s.logger.Error("StreamBatchInsert: Failed to receive", zap.Error(err))
+			return err
+		}
+
+		totalCount += len(req.Vectors)
+
+		s.indexMu.RLock()
+		index, exists := s.indexes[req.IndexName]
+		s.indexMu.RUnlock()
+
+		if !exists {
+			if err := stream.Send(&pb.BatchInsertResponse{
+				Success: false,
+				Message: fmt.Sprintf("index %s not found", req.IndexName),
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		shardGroups := make(map[int][]*storage.StoredVector)
+		failedIDs := make([]string, 0)
+
+		for _, vector := range req.Vectors {
+			if len(vector.Values) != index.Dimension {
+				failedIDs = append(failedIDs, vector.Id)
+				continue
+			}
+
+			storedVector := &storage.StoredVector{
+				VectorMetadata: storage.VectorMetadata{
+					ID:        vector.Id,
+					Metadata:  vector.Metadata,
+					Timestamp: time.Now().UnixNano(),
+				},
+				Values: vector.Values,
+			}
+
+			shardID, err := s.shardManager.GetShardForKey(vector.Id)
+			if err != nil {
+				failedIDs = append(failedIDs, vector.Id)
+				continue
+			}
+
+			if _, exists := shardGroups[shardID]; !exists {
+				shardGroups[shardID] = make([]*storage.StoredVector, 0)
+			}
+			shardGroups[shardID] = append(shardGroups[shardID], storedVector)
+		}
+
+		inserted := 0
+		ctx := stream.Context()
+
+		if req.Parallel {
+			var wg sync.WaitGroup
+			var mu sync.Mutex
+
+			for shardID, vectors := range shardGroups {
+				wg.Add(1)
+				go func(sID int, vecs []*storage.StoredVector) {
+					defer wg.Done()
+
+					adapter, err := s.shardManager.GetShardAdapter(sID)
+					if err != nil {
+						mu.Lock()
+						for _, v := range vecs {
+							failedIDs = append(failedIDs, v.ID)
+						}
+						mu.Unlock()
+						return
+					}
+
+					if err := adapter.BatchStoreVectors(ctx, req.IndexName, vecs); err != nil {
+						mu.Lock()
+						for _, v := range vecs {
+							failedIDs = append(failedIDs, v.ID)
+						}
+						mu.Unlock()
+					} else {
+						mu.Lock()
+						inserted += len(vecs)
+						mu.Unlock()
+
+						s.replicationManager.ReplicateBatch(ctx, req.IndexName, vecs, sID)
+					}
+				}(shardID, vectors)
+			}
+
+			wg.Wait()
+		} else {
+			for shardID, vectors := range shardGroups {
+				adapter, err := s.shardManager.GetShardAdapter(shardID)
+				if err != nil {
+					for _, v := range vectors {
+						failedIDs = append(failedIDs, v.ID)
+					}
+					continue
+				}
+
+				if err := adapter.BatchStoreVectors(ctx, req.IndexName, vectors); err != nil {
+					for _, v := range vectors {
+						failedIDs = append(failedIDs, v.ID)
+					}
+				} else {
+					inserted += len(vectors)
+					s.replicationManager.ReplicateBatch(ctx, req.IndexName, vectors, shardID)
+				}
+			}
+		}
+
+		totalSuccess += inserted
+
+		if err := stream.Send(&pb.BatchInsertResponse{
+			Success:       inserted > 0,
+			Message:       fmt.Sprintf("inserted %d vectors", inserted),
+			InsertedCount: int32(inserted),
+			FailedIds:     failedIDs,
+		}); err != nil {
+			return err
+		}
+
+		s.metricsCollector.IncrementCounter("vectors_inserted", float64(inserted))
+	}
+
+	s.logger.Info("StreamBatchInsert: Completed",
+		zap.Int("total", totalCount),
+		zap.Int("success", totalSuccess))
+
+	return nil
 }
