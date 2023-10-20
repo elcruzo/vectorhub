@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,16 +21,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
-	"net/http"
 )
 
 var (
-	configFile = flag.String("config", "configs/config.yaml", "Path to configuration file")
-	port       = flag.Int("port", 50051, "gRPC server port")
+	configFile  = flag.String("config", "configs/config.yaml", "Path to configuration file")
+	port        = flag.Int("port", 50051, "gRPC server port")
 	metricsPort = flag.Int("metrics-port", 9090, "Metrics server port")
 )
 
@@ -60,7 +62,7 @@ func main() {
 	}
 
 	shardManager := shard.NewShardManager(shardConfig, logger)
-	
+
 	replicationConfig := &replication.Config{
 		ReplicationFactor: cfg.Replication.Factor,
 		SyncInterval:      time.Duration(cfg.Replication.SyncIntervalSeconds) * time.Second,
@@ -78,7 +80,7 @@ func main() {
 			if j == 0 {
 				role = "primary"
 			}
-			
+
 			node := &replication.ReplicaNode{
 				ID:       fmt.Sprintf("replica-%d-%d", i, j),
 				Address:  addr,
@@ -86,9 +88,9 @@ func main() {
 				Status:   "active",
 				LastSync: time.Now(),
 			}
-			
+
 			if err := replicationManager.RegisterReplica(i, node); err != nil {
-				logger.Warn("Failed to register replica", 
+				logger.Warn("Failed to register replica",
 					zap.Int("shard", i),
 					zap.String("address", addr),
 					zap.Error(err))
@@ -121,13 +123,47 @@ func main() {
 		Timeout:               1 * time.Second,
 	}
 
-	grpcServer := grpc.NewServer(
+	serverOpts := []grpc.ServerOption{
 		grpc.KeepaliveEnforcementPolicy(kaep),
 		grpc.KeepaliveParams(kasp),
-		grpc.MaxRecvMsgSize(100*1024*1024),
-		grpc.MaxSendMsgSize(100*1024*1024),
+		grpc.MaxRecvMsgSize(100 * 1024 * 1024),
+		grpc.MaxSendMsgSize(100 * 1024 * 1024),
 		grpc.MaxConcurrentStreams(1000),
-	)
+	}
+
+	// Add TLS credentials if enabled
+	if cfg.Server.TLSEnabled {
+		if cfg.Server.TLSCertFile == "" || cfg.Server.TLSKeyFile == "" {
+			logger.Fatal("TLS enabled but certificate files not provided")
+		}
+
+		cert, err := tls.LoadX509KeyPair(cfg.Server.TLSCertFile, cfg.Server.TLSKeyFile)
+		if err != nil {
+			logger.Fatal("Failed to load TLS certificates", zap.Error(err))
+		}
+
+		tlsConfig := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+			CipherSuites: []uint16{
+				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			},
+		}
+
+		creds := credentials.NewTLS(tlsConfig)
+		serverOpts = append(serverOpts, grpc.Creds(creds))
+
+		logger.Info("TLS enabled for gRPC server",
+			zap.String("cert", cfg.Server.TLSCertFile),
+			zap.String("key", cfg.Server.TLSKeyFile))
+	} else {
+		logger.Warn("TLS is DISABLED - not recommended for production")
+	}
+
+	grpcServer := grpc.NewServer(serverOpts...)
 
 	pb.RegisterVectorServiceServer(grpcServer, vectorService)
 
@@ -137,14 +173,15 @@ func main() {
 
 	reflection.Register(grpcServer)
 
+	healthChecker := server.NewHealthChecker(shardManager, replicationManager, logger)
+
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
-		})
-		
-		logger.Info("Starting metrics server", zap.Int("port", *metricsPort))
+		http.HandleFunc("/health", healthChecker.HTTPHandler())
+		http.HandleFunc("/health/live", healthChecker.LivenessHandler())
+		http.HandleFunc("/health/ready", healthChecker.ReadinessHandler())
+
+		logger.Info("Starting metrics and health server", zap.Int("port", *metricsPort))
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", *metricsPort), nil); err != nil {
 			logger.Error("Failed to start metrics server", zap.Error(err))
 		}
