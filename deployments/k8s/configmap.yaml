@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vectorhub-config
+  namespace: vectorhub
+data:
+  config.yaml: |
+    server:
+      grpc_port: 50051
+      metrics_port: 9090
+      max_message_size_mb: 100
+      max_concurrent_streams: 1000
+      connection_timeout_seconds: 30
+      keepalive_time_seconds: 10
+      keepalive_timeout_seconds: 5
+      tls_enabled: false
+
+    redis:
+      addresses:
+        - "redis-0.redis-headless:6379"
+        - "redis-1.redis-headless:6379"
+        - "redis-2.redis-headless:6379"
+        - "redis-3.redis-headless:6379"
+      password: ""
+      db: 0
+      pool_size: 100
+      min_idle_conns: 10
+      max_retries: 3
+      dial_timeout_seconds: 5
+      read_timeout_seconds: 3
+      write_timeout_seconds: 3
+      cluster_mode: false
+      sentinel_mode: false
+
+    sharding:
+      shard_count: 8
+      replica_count: 2
+      virtual_nodes: 150
+      health_check_interval_seconds: 10
+      rebalance_enabled: true
+      rebalance_interval_minutes: 60
+
+    replication:
+      factor: 2
+      sync_interval_seconds: 5
+      max_lag_seconds: 30
+      failover_timeout_seconds: 60
+      replica_addresses:
+        - "redis-1.redis-headless:6379"
+        - "redis-2.redis-headless:6379"
+      async_replication: true
+      compression_enabled: false
+
+    metrics:
+      enabled: true
+      namespace: "vectorhub"
+      subsystem: "server"
+      collection_interval_seconds: 10
+      enable_detailed_metrics: true
+
+    logging:
+      level: "info"
+      format: "json"
+      output_path: "stdout"
+      error_output_path: "stderr"
+      enable_stacktrace: false
+      enable_caller: true
+
+    performance:
+      max_cpu: 0
+      max_memory_gb: 8
+      enable_profiling: false
+      gc_percent: 100
+      enable_memory_limit: true
+      vector_cache_size_mb: 1024
+      index_cache_size_mb: 512
+      query_cache_enabled: true
+      query_cache_ttl_seconds: 60

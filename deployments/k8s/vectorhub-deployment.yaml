@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vectorhub
+  namespace: vectorhub
+  labels:
+    app: vectorhub
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vectorhub
+  template:
+    metadata:
+      labels:
+        app: vectorhub
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: vectorhub
+        image: vectorhub:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 50051
+          name: grpc
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        env:
+        - name: VECTORHUB_REDIS__ADDRESSES
+          value: "redis-0.redis-headless:6379,redis-1.redis-headless:6379,redis-2.redis-headless:6379,redis-3.redis-headless:6379"
+        - name: VECTORHUB_REPLICATION__REPLICA_ADDRESSES
+          value: "redis-1.redis-headless:6379,redis-2.redis-headless:6379"
+        - name: VECTORHUB_LOGGING__LEVEL
+          value: "info"
+        volumeMounts:
+        - name: config
+          mountPath: /root/configs
+          readOnly: true
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 9090
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+      volumes:
+      - name: config
+        configMap:
+          name: vectorhub-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vectorhub-grpc
+  namespace: vectorhub
+  labels:
+    app: vectorhub
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 50051
+    targetPort: 50051
+    protocol: TCP
+    name: grpc
+  selector:
+    app: vectorhub
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vectorhub-metrics
+  namespace: vectorhub
+  labels:
+    app: vectorhub
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: vectorhub

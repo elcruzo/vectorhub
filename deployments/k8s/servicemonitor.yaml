@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vectorhub
+  namespace: vectorhub
+  labels:
+    app: vectorhub
+spec:
+  selector:
+    matchLabels:
+      app: vectorhub
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 15s
+    scrapeTimeout: 10s
