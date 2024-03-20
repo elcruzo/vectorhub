@@ -1,246 +1,99 @@
 #!/bin/bash
+# Test runner script
 
-# VectorHub Test and Build Script
 set -e
 
-echo "🚀 VectorHub Testing & Validation Script"
-echo "========================================"
+echo "========================================="
+echo "VectorHub Test Suite"
+echo "========================================="
 
-# Check if Go is installed
-if ! command -v go &> /dev/null; then
-    echo "❌ Go is not installed"
-    echo "📝 Install Go from: https://golang.org/doc/install"
-    echo "💡 Recommended version: Go 1.21+"
-    
-    echo ""
-    echo "🔍 Validating project structure instead..."
-    
-    # Check project structure
-    echo "✅ Checking project structure..."
-    
-    required_dirs=(
-        "cmd/vectorhub"
-        "internal/server"
-        "internal/storage" 
-        "internal/shard"
-        "internal/replication"
-        "internal/config"
-        "internal/metrics"
-        "api/proto"
-        "pkg/client"
-        "test/unit"
-        "configs"
-        "deployments"
-    )
-    
-    for dir in "${required_dirs[@]}"; do
-        if [ -d "$dir" ]; then
-            echo "  ✓ $dir"
-        else
-            echo "  ❌ $dir (missing)"
-        fi
-    done
-    
-    # Check required files
-    echo ""
-    echo "✅ Checking required files..."
-    
-    required_files=(
-        "go.mod"
-        "Makefile"
-        "Dockerfile"
-        "docker-compose.yml"
-        "README.md"
-        "cmd/vectorhub/main.go"
-        "api/proto/vectorhub.proto"
-        "configs/config.yaml"
-    )
-    
-    for file in "${required_files[@]}"; do
-        if [ -f "$file" ]; then
-            echo "  ✓ $file"
-        else
-            echo "  ❌ $file (missing)"
-        fi
-    done
-    
-    # Check Go files syntax
-    echo ""
-    echo "✅ Checking Go file syntax..."
-    
-    go_files=$(find . -name "*.go" -not -path "./vendor/*" 2>/dev/null || true)
-    file_count=0
-    
-    for file in $go_files; do
-        if [ -f "$file" ]; then
-            # Basic syntax check - look for obvious issues
-            if grep -q "package " "$file" && grep -q "import\|func\|type\|var\|const" "$file"; then
-                echo "  ✓ $file (basic syntax OK)"
-            else
-                echo "  ⚠️  $file (potential syntax issues)"
-            fi
-            ((file_count++))
-        fi
-    done
-    
-    echo ""
-    echo "📊 Project Summary:"
-    echo "  - Found $file_count Go files"
-    echo "  - Project structure: Complete"
-    echo "  - Dependencies: Listed in go.mod"
-    echo ""
-    echo "🎯 Next Steps:"
-    echo "  1. Install Go 1.21+"
-    echo "  2. Run: make proto (generate protobuf code)"
-    echo "  3. Run: go mod download (download dependencies)"
-    echo "  4. Run: make build (build the project)"
-    echo "  5. Run: make test (run tests)"
-    echo ""
-    exit 0
-fi
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
 
-echo "✅ Go is installed: $(go version)"
-echo ""
+TEST_TYPE="${1:-all}"
 
-# Test Go modules
-echo "🔧 Testing Go modules..."
-if go mod verify; then
-    echo "✅ Go modules verified"
-else
-    echo "❌ Go module verification failed"
-    echo "🔄 Attempting to fix..."
-    go mod download
-    go mod tidy
-fi
+run_unit_tests() {
+    echo -e "${YELLOW}Running unit tests...${NC}"
+    go test -v -race -coverprofile=coverage.out ./internal/... ./pkg/...
+    echo -e "${GREEN}✓ Unit tests passed${NC}"
+}
 
-# Generate protobuf if protoc is available
-echo ""
-echo "🛠️  Checking protobuf generation..."
-if command -v protoc &> /dev/null; then
-    echo "✅ protoc found: $(protoc --version)"
+run_integration_tests() {
+    echo -e "${YELLOW}Running integration tests...${NC}"
+    echo -e "${YELLOW}Note: VectorHub server must be running on localhost:50051${NC}"
     
-    # Install protobuf plugins if not available
-    if ! command -v protoc-gen-go &> /dev/null; then
-        echo "📦 Installing protoc-gen-go..."
-        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+    # Check if server is available
+    if ! nc -z localhost 50051 2>/dev/null; then
+        echo -e "${RED}Error: VectorHub server is not running on localhost:50051${NC}"
+        echo "Start the server with: docker-compose up -d"
+        exit 1
     fi
     
-    if ! command -v protoc-gen-go-grpc &> /dev/null; then
-        echo "📦 Installing protoc-gen-go-grpc..."
-        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+    go test -v -race ./test/integration/...
+    echo -e "${GREEN}✓ Integration tests passed${NC}"
+}
+
+run_benchmark_tests() {
+    echo -e "${YELLOW}Running benchmark tests...${NC}"
+    echo -e "${YELLOW}Note: VectorHub server must be running on localhost:50051${NC}"
+    
+    if ! nc -z localhost 50051 2>/dev/null; then
+        echo -e "${RED}Error: VectorHub server is not running on localhost:50051${NC}"
+        echo "Start the server with: docker-compose up -d"
+        exit 1
     fi
     
-    # Generate protobuf code
-    echo "🔨 Generating protobuf code..."
-    if make proto; then
-        echo "✅ Protobuf code generated"
-    else
-        echo "⚠️  Protobuf generation failed, using stubs"
-    fi
-else
-    echo "⚠️  protoc not found - using protobuf stubs"
-    echo "💡 Install protoc: https://grpc.io/docs/protoc-installation/"
-fi
+    go test -bench=. -benchmem ./test/benchmark/...
+    echo -e "${GREEN}✓ Benchmark tests completed${NC}"
+}
 
-# Test compilation
-echo ""
-echo "🔨 Testing compilation..."
-if go build ./...; then
-    echo "✅ All packages compile successfully"
-else
-    echo "❌ Compilation failed"
-    echo "🔧 Checking for common issues..."
+show_coverage() {
+    echo -e "${YELLOW}Generating coverage report...${NC}"
+    go tool cover -html=coverage.out -o coverage.html
+    echo -e "${GREEN}✓ Coverage report generated: coverage.html${NC}"
     
-    # Check for missing dependencies
-    go mod download
-    go mod tidy
-    
-    # Try building main package only
-    if go build -o /tmp/vectorhub-test ./cmd/vectorhub; then
-        echo "✅ Main package builds OK"
-        rm -f /tmp/vectorhub-test
-    else
-        echo "❌ Main package compilation failed"
-    fi
-fi
+    # Show summary
+    go tool cover -func=coverage.out | grep total
+}
 
-# Run tests
-echo ""
-echo "🧪 Running tests..."
-if go test ./...; then
-    echo "✅ All tests pass"
-else
-    echo "⚠️  Some tests failed"
-    echo "🔧 Running individual test suites..."
-    
-    # Test each package individually
-    test_dirs=("./internal/storage" "./internal/shard" "./test/unit")
-    
-    for dir in "${test_dirs[@]}"; do
-        if [ -d "$dir" ]; then
-            echo "Testing $dir..."
-            if go test "$dir"; then
-                echo "  ✅ $dir tests pass"
-            else
-                echo "  ❌ $dir tests fail"
-            fi
-        fi
-    done
-fi
+case "$TEST_TYPE" in
+    all)
+        run_unit_tests
+        echo ""
+        run_integration_tests
+        echo ""
+        show_coverage
+        ;;
+    unit)
+        run_unit_tests
+        show_coverage
+        ;;
+    integration)
+        run_integration_tests
+        ;;
+    benchmark)
+        run_benchmark_tests
+        ;;
+    coverage)
+        run_unit_tests
+        show_coverage
+        ;;
+    *)
+        echo "Usage: $0 [all|unit|integration|benchmark|coverage]"
+        echo ""
+        echo "  all          Run all tests (default)"
+        echo "  unit         Run unit tests only"
+        echo "  integration  Run integration tests only"
+        echo "  benchmark    Run benchmark tests only"
+        echo "  coverage     Run unit tests and show coverage"
+        exit 1
+        ;;
+esac
 
-# Check Docker
 echo ""
-echo "🐳 Checking Docker setup..."
-if command -v docker &> /dev/null; then
-    echo "✅ Docker found: $(docker --version)"
-    
-    # Test Docker build
-    echo "🔨 Testing Docker build..."
-    if docker build -t vectorhub-test .; then
-        echo "✅ Docker build successful"
-        docker rmi vectorhub-test 2>/dev/null || true
-    else
-        echo "❌ Docker build failed"
-    fi
-    
-    # Check docker-compose
-    if command -v docker-compose &> /dev/null; then
-        echo "✅ Docker Compose found"
-        echo "🔧 Validating docker-compose.yml..."
-        if docker-compose config > /dev/null; then
-            echo "✅ docker-compose.yml is valid"
-        else
-            echo "❌ docker-compose.yml has issues"
-        fi
-    else
-        echo "⚠️  Docker Compose not found"
-    fi
-else
-    echo "⚠️  Docker not found"
-    echo "💡 Install Docker: https://docs.docker.com/get-docker/"
-fi
-
-# Performance estimates
-echo ""
-echo "📊 Performance Estimates (theoretical):"
-echo "  - Insert throughput: 1M+ vectors/minute"
-echo "  - Search latency: <100ms (99th percentile)" 
-echo "  - Concurrent connections: 1000+"
-echo "  - Memory usage: ~1KB overhead per vector"
-echo ""
-
-echo "🎉 VectorHub validation complete!"
-echo ""
-echo "📋 Summary:"
-echo "  ✅ Project structure: Complete"
-echo "  ✅ Go code: Present"
-echo "  ✅ Configuration: Ready"
-echo "  ✅ Docker setup: Available"
-echo "  ✅ Documentation: Complete"
-echo ""
-echo "🚀 Ready to deploy!"
-echo ""
-echo "💡 Quick start:"
-echo "  docker-compose up -d    # Start the full stack"
-echo "  make build             # Build binary"
-echo "  ./bin/vectorhub        # Run server"
+echo -e "${GREEN}========================================="
+echo "All tests completed successfully!"
+echo "=========================================${NC}"
