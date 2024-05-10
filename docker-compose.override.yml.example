@@ -1,0 +1,42 @@
+# Docker Compose Override for Local Development
+# Copy this file to docker-compose.override.yml for local customization
+# docker-compose.override.yml is gitignored
+
+version: '3.8'
+
+services:
+  vectorhub:
+    # Use local build instead of pulling
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    # Enable hot reload (requires air or similar)
+    # volumes:
+    #   - .:/app
+    #   - /app/bin
+    
+    # Override environment variables
+    environment:
+      - VECTORHUB_LOGGING__LEVEL=debug
+      - VECTORHUB_PERFORMANCE__ENABLE_PROFILING=true
+      - VECTORHUB_METRICS__ENABLE_DETAILED_METRICS=true
+    
+    # Expose profiling port
+    # ports:
+    #   - "6060:6060"
+
+  # Add development tools
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=redis-0:redis-0:6379,redis-1:redis-1:6379,redis-2:redis-2:6379,redis-3:redis-3:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - vectorhub
+    depends_on:
+      - redis-0
+      - redis-1
+      - redis-2
+      - redis-3
