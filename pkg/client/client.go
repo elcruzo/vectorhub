@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	pb "github.com/elcruzo/vectorhub/api/proto"
@@ -17,7 +16,6 @@ type Client struct {
 	conn   *grpc.ClientConn
 	client pb.VectorServiceClient
 	config *Config
-	mu     sync.RWMutex
 }
 
 type Config struct {
@@ -56,7 +54,7 @@ func NewClient(config *Config) (*Client, error) {
 		MaxDelay:   config.BackoffMaxDelay,
 	}
 
-	conn, err := grpc.Dial(config.Address,
+	conn, err := grpc.NewClient(config.Address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(config.MaxMessageSize),

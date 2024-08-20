@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -31,7 +30,6 @@ type Collector struct {
 	errorCounter   *prometheus.CounterVec
 	requestCounter *prometheus.CounterVec
 
-	mu            sync.RWMutex
 	customMetrics map[string]prometheus.Metric
 }
 

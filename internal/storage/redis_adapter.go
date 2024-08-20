@@ -15,7 +15,6 @@ type RedisAdapter struct {
 	client       *redis.Client
 	clusterMode  bool
 	logger       *zap.Logger
-	mu           sync.RWMutex
 	connPool     *ConnectionPool
 	shardManager ShardManagerInterface
 }
@@ -383,7 +382,7 @@ func (r *RedisAdapter) SearchVectors(ctx context.Context, indexName string, quer
 			continue
 		}
 
-		if filter != nil && len(filter) > 0 {
+		if len(filter) > 0 {
 			match := true
 			for k, v := range filter {
 				if vector.Metadata[k] != v {

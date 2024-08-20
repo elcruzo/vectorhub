@@ -197,7 +197,7 @@ func TestConcurrentOperations(t *testing.T) {
 		ReplicaCount: 1,
 	})
 	require.NoError(t, err)
-	defer c.DropIndex(ctx, indexName)
+	defer func() { _, _ = c.DropIndex(ctx, indexName) }()
 
 	// Concurrent inserts
 	t.Run("ConcurrentInserts", func(t *testing.T) {

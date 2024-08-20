@@ -128,7 +128,7 @@ func BenchmarkSearch(b *testing.B) {
 		if end > numVectors {
 			end = numVectors
 		}
-		benchClient.BatchInsert(ctx, benchIndexName, vectors[i:end], true)
+		_, _ = benchClient.BatchInsert(ctx, benchIndexName, vectors[i:end], true)
 	}
 
 	topKValues := []int{1, 5, 10, 50, 100}
@@ -180,7 +180,7 @@ func BenchmarkGet(b *testing.B) {
 
 	// Insert a test vector
 	testID := "bench-get-test"
-	benchClient.Insert(ctx, benchIndexName, testID, generateRandomVector(benchDimension), nil)
+	_, _ = benchClient.Insert(ctx, benchIndexName, testID, generateRandomVector(benchDimension), nil)
 
 	b.ResetTimer()
 
@@ -200,7 +200,7 @@ func BenchmarkUpdate(b *testing.B) {
 	testID := "bench-update-test"
 
 	// Insert initial vector
-	benchClient.Insert(ctx, benchIndexName, testID, generateRandomVector(benchDimension), nil)
+	_, _ = benchClient.Insert(ctx, benchIndexName, testID, generateRandomVector(benchDimension), nil)
 
 	b.ResetTimer()
 
@@ -223,7 +223,7 @@ func BenchmarkDelete(b *testing.B) {
 
 	// Pre-insert vectors to delete
 	for i := 0; i < b.N; i++ {
-		benchClient.Insert(ctx, benchIndexName, fmt.Sprintf("bench-delete-%d", i), generateRandomVector(benchDimension), nil)
+		_, _ = benchClient.Insert(ctx, benchIndexName, fmt.Sprintf("bench-delete-%d", i), generateRandomVector(benchDimension), nil)
 	}
 
 	b.ResetTimer()
@@ -290,5 +290,5 @@ func generateRandomVector(dimension int) []float32 {
 }
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
+	// Seed is deprecated in Go 1.20+, using global random generator
 }

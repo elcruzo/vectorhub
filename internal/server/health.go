@@ -193,7 +193,7 @@ func (h *HealthChecker) LivenessHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Liveness probe - just check if the server is running
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	}
 }
 
@@ -207,10 +207,10 @@ func (h *HealthChecker) ReadinessHandler() http.HandlerFunc {
 		// Readiness probe - check if we can serve traffic
 		if health.Overall.Healthy {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Ready"))
+			_, _ = w.Write([]byte("Ready"))
 		} else {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte("Not Ready"))
+			_, _ = w.Write([]byte("Not Ready"))
 		}
 	}
 }

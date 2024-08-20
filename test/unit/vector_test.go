@@ -290,6 +290,6 @@ func BenchmarkVectorSerialization(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		data, _ := vector.ToBytes()
-		storage.VectorFromBytes(data)
+		_, _ = storage.VectorFromBytes(data)
 	}
 }

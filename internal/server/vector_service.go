@@ -197,7 +197,7 @@ func (s *VectorService) BatchInsert(ctx context.Context, req *pb.BatchInsertRequ
 					inserted += len(vecs)
 					mu.Unlock()
 
-					s.replicationManager.ReplicateBatch(ctx, req.IndexName, vecs, sID)
+					_ = s.replicationManager.ReplicateBatch(ctx, req.IndexName, vecs, sID)
 				}
 			}(shardID, vectors)
 		}
@@ -440,7 +440,7 @@ func (s *VectorService) Update(ctx context.Context, req *pb.UpdateRequest) (*pb.
 		}, nil
 	}
 
-	s.replicationManager.ReplicateUpdate(ctx, req.IndexName, storedVector, shardID)
+	_ = s.replicationManager.ReplicateUpdate(ctx, req.IndexName, storedVector, shardID)
 
 	return &pb.UpdateResponse{
 		Success: true,
@@ -472,7 +472,7 @@ func (s *VectorService) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.
 		}, nil
 	}
 
-	s.replicationManager.ReplicateDelete(ctx, req.IndexName, req.VectorId, shardID)
+	_ = s.replicationManager.ReplicateDelete(ctx, req.IndexName, req.VectorId, shardID)
 	s.metricsCollector.IncrementCounter("vectors_deleted", 1)
 
 	return &pb.DeleteResponse{
@@ -508,7 +508,7 @@ func (s *VectorService) BatchDelete(ctx context.Context, req *pb.BatchDeleteRequ
 			s.logger.Warn("Failed to batch delete vectors", zap.Error(err))
 		} else {
 			totalDeleted += deleted
-			s.replicationManager.ReplicateBatchDelete(ctx, req.IndexName, ids, shardID)
+			_ = s.replicationManager.ReplicateBatchDelete(ctx, req.IndexName, ids, shardID)
 		}
 	}
 
@@ -755,7 +755,7 @@ func (s *VectorService) StreamInsert(stream pb.VectorService_StreamInsertServer)
 			continue
 		}
 
-		s.replicationManager.ReplicateInsert(ctx, req.IndexName, storedVector, shardID)
+		_ = s.replicationManager.ReplicateInsert(ctx, req.IndexName, storedVector, shardID)
 
 		successCount++
 		if err := stream.Send(&pb.InsertResponse{
@@ -1011,7 +1011,7 @@ func (s *VectorService) StreamBatchInsert(stream pb.VectorService_StreamBatchIns
 						inserted += len(vecs)
 						mu.Unlock()
 
-						s.replicationManager.ReplicateBatch(ctx, req.IndexName, vecs, sID)
+						_ = s.replicationManager.ReplicateBatch(ctx, req.IndexName, vecs, sID)
 					}
 				}(shardID, vectors)
 			}
