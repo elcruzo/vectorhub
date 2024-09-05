@@ -23,7 +23,7 @@ type Manager struct {
 	replicas       map[int][]*ReplicaNode // shardID -> replicas
 	primaryNodes   map[int]string         // shardID -> primary address
 	adapters       map[string]*storage.RedisAdapter
-	config         *Config
+	config         *ReplicationConfig
 	logger         *zap.Logger
 	mu             sync.RWMutex
 	syncTicker     *time.Ticker
@@ -32,7 +32,7 @@ type Manager struct {
 	replicationLog *ReplicationLog
 }
 
-type Config struct {
+type ReplicationConfig struct {
 	ReplicationFactor int
 	SyncInterval      time.Duration
 	MaxLag            time.Duration
@@ -54,7 +54,7 @@ type ReplicationEntry struct {
 	Success   bool
 }
 
-func NewManager(config *Config, logger *zap.Logger) *Manager {
+func NewManager(config *ReplicationConfig, logger *zap.Logger) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	m := &Manager{
@@ -87,11 +87,13 @@ func (m *Manager) RegisterReplica(shardID int, node *ReplicaNode) error {
 		}
 	}
 
-	adapter, err := storage.NewRedisAdapter(storage.RedisConfig{
-		Addr:     node.Address,
-		Password: m.config.RedisPassword,
-		DB:       m.config.RedisDB + shardID,
-	}, m.logger)
+	adapter, err := storage.NewRedisAdapter(
+		node.Address,
+		m.config.RedisPassword,
+		m.config.RedisDB+shardID,
+		false, // clusterMode
+		m.logger,
+	)
 
 	if err != nil {
 		return fmt.Errorf("failed to create adapter for replica: %w", err)

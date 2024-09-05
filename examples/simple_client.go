@@ -15,7 +15,7 @@ func main() {
 	fmt.Println("========================")
 
 	// Create a client instance
-	clientConfig := &client.Config{
+	clientConfig := &client.ClientConfig{
 		Address:    "localhost:50051",
 		Timeout:    30 * time.Second,
 		MaxRetries: 3,

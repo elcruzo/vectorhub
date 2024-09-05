@@ -75,11 +75,13 @@ func NewShardManager(config *ShardConfig, logger *zap.Logger) *ShardManager {
 		}
 		sm.nodeToShards[nodeAddr] = append(sm.nodeToShards[nodeAddr], i)
 
-		adapter, err := storage.NewRedisAdapter(storage.RedisConfig{
-			Addr:     nodeAddr,
-			Password: config.RedisPassword,
-			DB:       config.RedisDB + i,
-		}, logger)
+		adapter, err := storage.NewRedisAdapter(
+			nodeAddr,
+			config.RedisPassword,
+			config.RedisDB+i,
+			false, // clusterMode
+			logger,
+		)
 
 		if err != nil {
 			logger.Error("Failed to create Redis adapter for shard",

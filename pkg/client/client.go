@@ -15,10 +15,11 @@ import (
 type Client struct {
 	conn   *grpc.ClientConn
 	client pb.VectorServiceClient
-	config *Config
+	config *ClientConfig
 }
 
-type Config struct {
+// ClientConfig holds client connection configuration
+type ClientConfig struct {
 	Address         string
 	MaxRetries      int
 	Timeout         time.Duration
@@ -27,7 +28,7 @@ type Config struct {
 	BackoffMaxDelay time.Duration
 }
 
-func NewClient(config *Config) (*Client, error) {
+func NewClient(config *ClientConfig) (*Client, error) {
 	if config.Timeout == 0 {
 		config.Timeout = 30 * time.Second
 	}

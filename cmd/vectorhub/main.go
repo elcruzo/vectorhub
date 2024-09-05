@@ -63,7 +63,7 @@ func main() {
 
 	shardManager := shard.NewShardManager(shardConfig, logger)
 
-	replicationConfig := &replication.Config{
+	replicationConfig := &replication.ReplicationConfig{
 		ReplicationFactor: cfg.Replication.Factor,
 		SyncInterval:      time.Duration(cfg.Replication.SyncIntervalSeconds) * time.Second,
 		MaxLag:            time.Duration(cfg.Replication.MaxLagSeconds) * time.Second,

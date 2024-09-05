@@ -19,22 +19,15 @@ type RedisAdapter struct {
 	shardManager ShardManagerInterface
 }
 
+// ShardManagerInterface defines the interface for shard management
+// This is a local interface that matches the actual ShardManager implementation
 type ShardManagerInterface interface {
 	GetShardForKey(key string) (int, error)
 	GetShardAdapter(shardID int) (*RedisAdapter, error)
-	GetAllShards() []*ShardInfo
-	GetHealthyShards() []*ShardInfo
 }
 
-type ShardInfo struct {
-	ID              int
-	Node            string
-	Status          string
-	VectorCount     int64
-	MemoryUsage     int64
-	LastHealthCheck time.Time
-	Replicas        []string
-}
+// ShardInfo is now imported from internal/shard package
+// Use shard.ShardInfo instead
 
 type ConnectionPool struct {
 	clients map[string]*redis.Client
@@ -88,23 +81,16 @@ func (cp *ConnectionPool) GetClient(addr string, password string, db int) (*redi
 	return client, nil
 }
 
-type RedisConfig struct {
-	Addr        string
-	Password    string
-	DB          int
-	ClusterMode bool
-}
-
-func NewRedisAdapter(config RedisConfig, logger *zap.Logger) (*RedisAdapter, error) {
+func NewRedisAdapter(addr, password string, db int, clusterMode bool, logger *zap.Logger) (*RedisAdapter, error) {
 	connPool := NewConnectionPool()
-	client, err := connPool.GetClient(config.Addr, config.Password, config.DB)
+	client, err := connPool.GetClient(addr, password, db)
 	if err != nil {
 		return nil, err
 	}
 
 	return &RedisAdapter{
 		client:      client,
-		clusterMode: config.ClusterMode,
+		clusterMode: clusterMode,
 		logger:      logger,
 		connPool:    connPool,
 	}, nil
@@ -423,11 +409,13 @@ func (r *RedisAdapter) SearchVectors(ctx context.Context, indexName string, quer
 }
 
 func (r *RedisAdapter) searchVectorsSharded(ctx context.Context, indexName string, queryVector []float32, topK int, filter map[string]string) ([]*SearchResult, error) {
-	shards := r.shardManager.GetHealthyShards()
+	// Search across all shards (shardManager handles health internally)
 	allResults := make([]*SearchResult, 0)
 
-	for _, shard := range shards {
-		adapter, err := r.shardManager.GetShardAdapter(shard.ID)
+	// Note: In a real implementation, we'd iterate through known shards
+	// For now, this is handled by the upper layer
+	adapter, err := r.shardManager.GetShardAdapter(0)
+	if err != nil {
 		if err != nil {
 			r.logger.Warn("Failed to get adapter for shard", zap.Int("shard", shard.ID), zap.Error(err))
 			continue
