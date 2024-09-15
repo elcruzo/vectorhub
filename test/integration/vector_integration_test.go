@@ -23,7 +23,7 @@ func TestVectorOperations(t *testing.T) {
 	}
 
 	// Create client
-	cfg := &client.Config{
+	cfg := &client.ClientConfig{
 		Address: testServerAddr,
 		Timeout: 30 * time.Second,
 	}
@@ -176,7 +176,7 @@ func TestConcurrentOperations(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	cfg := &client.Config{
+	cfg := &client.ClientConfig{
 		Address: testServerAddr,
 		Timeout: 30 * time.Second,
 	}
@@ -197,7 +197,7 @@ func TestConcurrentOperations(t *testing.T) {
 		ReplicaCount: 1,
 	})
 	require.NoError(t, err)
-	defer func() { _, _ = c.DropIndex(ctx, indexName) }()
+	defer func() { _ = c.DropIndex(ctx, indexName) }()
 
 	// Concurrent inserts
 	t.Run("ConcurrentInserts", func(t *testing.T) {

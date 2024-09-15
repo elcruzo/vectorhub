@@ -20,7 +20,7 @@ var benchClient *client.Client
 
 func setupBenchmark(b *testing.B) {
 	if benchClient == nil {
-		cfg := &client.Config{
+		cfg := &client.ClientConfig{
 			Address: benchServerAddr,
 			Timeout: 60 * time.Second,
 		}
@@ -180,7 +180,7 @@ func BenchmarkGet(b *testing.B) {
 
 	// Insert a test vector
 	testID := "bench-get-test"
-	_, _ = benchClient.Insert(ctx, benchIndexName, testID, generateRandomVector(benchDimension), nil)
+	_ = benchClient.Insert(ctx, benchIndexName, testID, generateRandomVector(benchDimension), nil)
 
 	b.ResetTimer()
 
@@ -200,7 +200,7 @@ func BenchmarkUpdate(b *testing.B) {
 	testID := "bench-update-test"
 
 	// Insert initial vector
-	_, _ = benchClient.Insert(ctx, benchIndexName, testID, generateRandomVector(benchDimension), nil)
+	_ = benchClient.Insert(ctx, benchIndexName, testID, generateRandomVector(benchDimension), nil)
 
 	b.ResetTimer()
 
@@ -223,7 +223,7 @@ func BenchmarkDelete(b *testing.B) {
 
 	// Pre-insert vectors to delete
 	for i := 0; i < b.N; i++ {
-		_, _ = benchClient.Insert(ctx, benchIndexName, fmt.Sprintf("bench-delete-%d", i), generateRandomVector(benchDimension), nil)
+		_ = benchClient.Insert(ctx, benchIndexName, fmt.Sprintf("bench-delete-%d", i), generateRandomVector(benchDimension), nil)
 	}
 
 	b.ResetTimer()
