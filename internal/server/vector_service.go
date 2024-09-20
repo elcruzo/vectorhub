@@ -219,7 +219,7 @@ func (s *VectorService) BatchInsert(ctx context.Context, req *pb.BatchInsertRequ
 				}
 			} else {
 				inserted += len(vectors)
-				s.replicationManager.ReplicateBatch(ctx, req.IndexName, vectors, shardID)
+				_ = s.replicationManager.ReplicateBatch(ctx, req.IndexName, vectors, shardID)
 			}
 		}
 	}
@@ -1033,7 +1033,7 @@ func (s *VectorService) StreamBatchInsert(stream pb.VectorService_StreamBatchIns
 					}
 				} else {
 					inserted += len(vectors)
-					s.replicationManager.ReplicateBatch(ctx, req.IndexName, vectors, shardID)
+					_ = s.replicationManager.ReplicateBatch(ctx, req.IndexName, vectors, shardID)
 				}
 			}
 		}
