@@ -114,8 +114,9 @@ func (r *RedisAdapter) StoreVector(ctx context.Context, indexName string, vector
 
 	if len(vector.Metadata) > 0 {
 		metaKey := fmt.Sprintf("metadata:%s:%s", indexName, vector.ID)
-		metaData, _ := json.Marshal(vector.Metadata)
-		pipe.Set(ctx, metaKey, metaData, 0)
+		if metaData, err := json.Marshal(vector.Metadata); err == nil {
+			pipe.Set(ctx, metaKey, metaData, 0)
+		}
 	}
 
 	_, err = pipe.Exec(ctx)
@@ -160,8 +161,9 @@ func (r *RedisAdapter) BatchStoreVectors(ctx context.Context, indexName string, 
 
 		if len(vector.Metadata) > 0 {
 			metaKey := fmt.Sprintf("metadata:%s:%s", indexName, vector.ID)
-			metaData, _ := json.Marshal(vector.Metadata)
-			pipe.Set(ctx, metaKey, metaData, 0)
+			if metaData, err := json.Marshal(vector.Metadata); err == nil {
+				pipe.Set(ctx, metaKey, metaData, 0)
+			}
 		}
 	}
 

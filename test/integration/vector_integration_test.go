@@ -30,7 +30,7 @@ func TestVectorOperations(t *testing.T) {
 
 	c, err := client.NewClient(cfg)
 	require.NoError(t, err, "Failed to create client")
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	ctx := context.Background()
 
@@ -183,7 +183,7 @@ func TestConcurrentOperations(t *testing.T) {
 
 	c, err := client.NewClient(cfg)
 	require.NoError(t, err)
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	ctx := context.Background()
 	indexName := "concurrent_test_index"

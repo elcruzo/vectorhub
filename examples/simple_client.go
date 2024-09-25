@@ -29,7 +29,7 @@ func main() {
 		log.Println("Note: This example requires VectorHub server to be running")
 		return
 	}
-	defer vectorClient.Close()
+	defer func() { _ = vectorClient.Close() }()
 
 	ctx := context.Background()
 
