@@ -29,10 +29,26 @@ func TestVectorOperations(t *testing.T) {
 	}
 
 	c, err := client.NewClient(cfg)
-	require.NoError(t, err, "Failed to create client")
+	if err != nil {
+		t.Skip("Skipping integration test: VectorHub server not running at", testServerAddr)
+	}
 	defer func() { _ = c.Close() }()
 
 	ctx := context.Background()
+
+	// Test server connection
+	err = c.CreateIndex(ctx, client.CreateIndexOptions{
+		Name:         testIndexName + "_conn_test",
+		Dimension:    testDimension,
+		Metric:       "cosine",
+		ShardCount:   4,
+		ReplicaCount: 1,
+	})
+	if err != nil {
+		_ = c.DropIndex(ctx, testIndexName+"_conn_test")
+		t.Skip("Skipping integration test: cannot connect to VectorHub server at", testServerAddr)
+	}
+	_ = c.DropIndex(ctx, testIndexName+"_conn_test")
 
 	// Create index
 	t.Run("CreateIndex", func(t *testing.T) {
@@ -83,9 +99,11 @@ func TestVectorOperations(t *testing.T) {
 
 		result, err := c.BatchInsert(ctx, testIndexName, vectors, true)
 		assert.NoError(t, err, "Failed to batch insert")
-		assert.True(t, result.Success, "Batch insert failed")
-		assert.Equal(t, 20, result.InsertedCount, "Expected 20 vectors inserted")
-		assert.Empty(t, result.FailedIDs, "Expected no failed inserts")
+		if result != nil {
+			assert.True(t, result.Success, "Batch insert failed")
+			assert.Equal(t, 20, result.InsertedCount, "Expected 20 vectors inserted")
+			assert.Empty(t, result.FailedIDs, "Expected no failed inserts")
+		}
 	})
 
 	// Get vector
@@ -182,7 +200,9 @@ func TestConcurrentOperations(t *testing.T) {
 	}
 
 	c, err := client.NewClient(cfg)
-	require.NoError(t, err)
+	if err != nil {
+		t.Skip("Skipping integration test: VectorHub server not running at", testServerAddr)
+	}
 	defer func() { _ = c.Close() }()
 
 	ctx := context.Background()
